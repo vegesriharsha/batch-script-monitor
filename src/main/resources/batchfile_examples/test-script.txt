@@ -1,0 +1,123 @@
+@echo off
+setlocal EnableDelayedExpansion
+
+:: Sample batch script to test the Batch Script Execution Monitor application
+:: This script will simulate a long-running process with progress updates and output
+
+echo Starting test script execution...
+echo.
+
+:: Get command line parameters
+set DELAY_TIME=1
+set ERROR_CHANCE=0
+set OUTPUT_FILE=%TEMP%\batch_result.txt
+
+:parse_params
+if "%~1"=="" goto end_parse
+if /i "%~1"=="--delay" (
+    set DELAY_TIME=%~2
+    shift
+    shift
+    goto parse_params
+)
+if /i "%~1"=="--error-chance" (
+    set ERROR_CHANCE=%~2
+    shift
+    shift
+    goto parse_params
+)
+if /i "%~1"=="--output" (
+    set OUTPUT_FILE=%~2
+    shift
+    shift
+    goto parse_params
+)
+shift
+goto parse_params
+:end_parse
+
+echo Parameters:
+echo - Delay between steps: %DELAY_TIME% second(s)
+echo - Error chance: %ERROR_CHANCE%%%
+echo - Output file: %OUTPUT_FILE%
+echo.
+
+echo Progress: 0%% > "%OUTPUT_FILE%"
+
+:: Simulate initial setup
+echo [INFO] Initializing process...
+timeout /t %DELAY_TIME% /nobreak > nul
+echo [INFO] Checking environment...
+timeout /t %DELAY_TIME% /nobreak > nul
+
+:: Generate a random number to decide if we should error out
+set /a RANDOM_NUM=%RANDOM% %% 100 + 1
+if %RANDOM_NUM% LEQ %ERROR_CHANCE% (
+    echo [ERROR] Critical environment check failed! Error code: E-%RANDOM_NUM%
+    echo Error: Critical environment check failed! Error code: E-%RANDOM_NUM% > "%OUTPUT_FILE%"
+    exit /b 1
+)
+
+echo [INFO] Environment check passed.
+echo Progress: 10%%
+
+:: Simulate data loading
+echo [INFO] Loading data files...
+timeout /t %DELAY_TIME% /nobreak > nul
+echo [INFO] Processing input...
+timeout /t %DELAY_TIME% /nobreak > nul
+echo Progress: 25%%
+
+:: Process data in steps to show progress
+echo [INFO] Starting main processing task...
+
+for /l %%i in (26,1,90) do (
+    if %%i EQU 30 echo [INFO] Phase 1 complete.
+    if %%i EQU 50 echo [INFO] Phase 2 complete.
+    if %%i EQU 70 echo [INFO] Phase 3 complete.
+    if %%i EQU 90 echo [INFO] Processing complete.
+    
+    if %%i EQU 45 (
+        :: Simulate a warning
+        echo [WARN] Performance degradation detected, continuing...
+    )
+    
+    if %%i EQU 65 (
+        :: Simulate a potential error based on error chance
+        set /a RANDOM_NUM=%RANDOM% %% 100 + 1
+        if !RANDOM_NUM! LEQ %ERROR_CHANCE% (
+            echo [ERROR] Processing failed at %%i%% completion! Error code: E-!RANDOM_NUM!
+            echo Error: Processing failed at %%i%% completion! Error code: E-!RANDOM_NUM! > "%OUTPUT_FILE%"
+            exit /b 2
+        )
+    )
+    
+    echo Progress: %%i%%
+    timeout /t %DELAY_TIME% /nobreak > nul
+)
+
+:: Finish up
+echo [INFO] Finalizing results...
+timeout /t %DELAY_TIME% /nobreak > nul
+echo [INFO] Cleaning up temporary files...
+timeout /t %DELAY_TIME% /nobreak > nul
+echo Progress: 100%%
+
+:: Generate some result output
+echo ========================== > "%OUTPUT_FILE%"
+echo = BATCH SCRIPT RESULTS  = >> "%OUTPUT_FILE%"
+echo ========================== >> "%OUTPUT_FILE%"
+echo. >> "%OUTPUT_FILE%"
+echo Execution completed successfully at %DATE% %TIME% >> "%OUTPUT_FILE%"
+echo. >> "%OUTPUT_FILE%"
+echo Summary: >> "%OUTPUT_FILE%"
+echo - Process completed in %DELAY_TIME% second steps >> "%OUTPUT_FILE%"
+echo - All phases executed without errors >> "%OUTPUT_FILE%"
+echo - Output generated successfully >> "%OUTPUT_FILE%"
+echo. >> "%OUTPUT_FILE%"
+echo ========================== >> "%OUTPUT_FILE%"
+
+echo [INFO] Script execution completed successfully.
+echo [INFO] Results written to: %OUTPUT_FILE%
+
+exit /b 0
