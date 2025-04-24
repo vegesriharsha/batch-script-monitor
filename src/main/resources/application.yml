@@ -10,7 +10,7 @@ spring:
     driver-class-name: org.h2.Driver
 
   jpa:
-    database-platform: org.hibernate.dialect.H2Dialect
+    database-platform: org.hibernate.dialect.SQLServerDialect
     hibernate:
       ddl-auto: create-drop
     show-sql: true
@@ -31,7 +31,8 @@ server:
 
 batch:
   scripts:
-    baseDir: ${user.home}/batch-scripts
+    #baseDir: ${user.home}/batch-scripts
+    baseDir: ""
     defaultScript: default_script.sh
   execution:
     timeout: 3600 # Execution timeout in seconds

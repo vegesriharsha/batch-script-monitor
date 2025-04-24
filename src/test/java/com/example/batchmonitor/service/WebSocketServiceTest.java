@@ -56,7 +56,7 @@ class WebSocketServiceTest {
         // Verify interaction with messaging template
         verify(messagingTemplate).convertAndSend(
                 eq("/topic/status"),
-                eq(Map.of("executionId", 1L, "status", "COMPLETED")));
+                eq(Map.of("executionId", 1L, "static", "COMPLETED")));
     }
 
     @Test

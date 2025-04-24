@@ -39,7 +39,7 @@ public class WebSocketService {
     public void sendStatusUpdate(Long executionId, String status) {
         log.debug("Sending status update for execution {}: {}", executionId, status);
         messagingTemplate.convertAndSend(statusTopic,
-                Map.of("executionId", executionId, "status", status));
+                Map.of("executionId", executionId, "static", status));
     }
 
     public void sendConsoleOutput(ConsoleOutput output) {

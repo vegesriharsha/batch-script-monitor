@@ -23,7 +23,9 @@ public class ExecutionLog {
     @JoinColumn(name = "batch_execution_id", nullable = false)
     private BatchExecution batchExecution;
 
+    @Column(length = 2000)
     private String message;
+
     private LocalDateTime timestamp;
 
     @Enumerated(EnumType.STRING)

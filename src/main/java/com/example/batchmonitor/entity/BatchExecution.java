@@ -34,7 +34,7 @@ public class BatchExecution {
     private String outputFilePath;
     private String errorMessage;
 
-    @OneToMany(mappedBy = "batchExecution", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "batchExecution", cascade = CascadeType.ALL)
     private List<ExecutionLog> logs = new ArrayList<>();
 
     public enum ExecutionStatus {
