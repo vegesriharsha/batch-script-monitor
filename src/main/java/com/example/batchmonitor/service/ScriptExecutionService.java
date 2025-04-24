@@ -17,7 +17,9 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -39,6 +41,12 @@ public class ScriptExecutionService {
 
     @Value("${batch.execution.timeout}")
     private int executionTimeoutSeconds;
+
+    @Value("${batch.execution.logs.directory}")
+    private String logsDirectory;
+
+    @Value("${batch.execution.logs.keepCopy:false}")
+    private boolean keepLogCopy;
 
     private final ExecutorService executor = Executors.newCachedThreadPool();
 
@@ -62,7 +70,7 @@ public class ScriptExecutionService {
 
             try {
                 // Create temp file for output if needed
-                Path outputFile = createTempOutputFile();
+                Path outputFile = createLogFile(execution);
                 execution.setOutputFilePath(outputFile.toString());
                 executionRepository.save(execution);
 
@@ -147,9 +155,18 @@ public class ScriptExecutionService {
         }, executor);
     }
 
-    private Path createTempOutputFile() throws IOException {
-        Path tempDir = Files.createTempDirectory("batch-monitor");
-        return Files.createFile(tempDir.resolve("output-" + UUID.randomUUID() + ".txt"));
+    private Path createLogFile(BatchExecution execution) throws IOException {
+        // Create logs directory if it doesn't exist
+        Path logsDir = Paths.get(logsDirectory);
+        if (!Files.exists(logsDir)) {
+            Files.createDirectories(logsDir);
+        }
+
+        // Generate log file name based on execution ID and timestamp
+        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+        String fileName = String.format("execution_%d_%s.log", execution.getId(), timestamp);
+
+        return Files.createFile(logsDir.resolve(fileName));
     }
 
     @Transactional

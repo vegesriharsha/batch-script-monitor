@@ -37,6 +37,9 @@ batch:
   execution:
     timeout: 3600 # Execution timeout in seconds
     maxConcurrent: 5 # Maximum concurrent executions
+    logs:
+      directory: ${user.home}/batch-monitor/logs # Directory for log files
+      keepCopy: true # Whether to maintain a copy of logs
   websocket:
     endpoint: /ws
     topic:
