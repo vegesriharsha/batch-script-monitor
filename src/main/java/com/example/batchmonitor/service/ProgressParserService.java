@@ -10,32 +10,42 @@ import java.util.regex.Pattern;
 @Slf4j
 public class ProgressParserService {
 
-    // Example patterns: "Progress: 45%", "Completed: 45/100", "Task 45% complete"
+    // Enhanced patterns that support decimal values (e.g., "Progress: 99.9%")
     private static final Pattern[] PROGRESS_PATTERNS = {
-            Pattern.compile("\\bprogress:?\\s*(\\d+)%", Pattern.CASE_INSENSITIVE),
-            Pattern.compile("\\bcompleted:?\\s*(\\d+)%", Pattern.CASE_INSENSITIVE),
-            Pattern.compile("\\b(\\d+)%\\s*complete", Pattern.CASE_INSENSITIVE),
-            Pattern.compile("\\bcompleted:?\\s*(\\d+)/(\\d+)", Pattern.CASE_INSENSITIVE),
-            Pattern.compile("\\btask:?\\s*(\\d+)\\s*of\\s*(\\d+)", Pattern.CASE_INSENSITIVE)
+            Pattern.compile("\\bprogress:?\\s*(\\d+(\\.\\d+)?)%", Pattern.CASE_INSENSITIVE),
+            Pattern.compile("\\bcompleted:?\\s*(\\d+(\\.\\d+)?)%", Pattern.CASE_INSENSITIVE),
+            Pattern.compile("\\b(\\d+(\\.\\d+)?)%\\s*complete", Pattern.CASE_INSENSITIVE),
+            Pattern.compile("\\bcompleted:?\\s*(\\d+(\\.\\d+)?)/(\\d+(\\.\\d+)?)", Pattern.CASE_INSENSITIVE),
+            Pattern.compile("\\btask:?\\s*(\\d+(\\.\\d+)?)\\s*of\\s*(\\d+(\\.\\d+)?)", Pattern.CASE_INSENSITIVE)
     };
 
+    /**
+     * Parses progress information from a text line.
+     * Supports both integer and decimal percentage values.
+     *
+     * @param line The text line to parse
+     * @return The parsed progress percentage, or null if no progress info found
+     */
     public Double parseProgress(String line) {
         if (line == null || line.isBlank()) {
             return null;
         }
 
         // Try all patterns
-        for (Pattern pattern : PROGRESS_PATTERNS) {
+        for (int i = 0; i < PROGRESS_PATTERNS.length; i++) {
+            Pattern pattern = PROGRESS_PATTERNS[i];
             Matcher matcher = pattern.matcher(line);
+
             if (matcher.find()) {
                 try {
-                    if (matcher.groupCount() == 1) {
-                        // Direct percentage
+                    // Direct percentage patterns (first 3 patterns)
+                    if (i < 3) {
                         return Double.parseDouble(matcher.group(1));
-                    } else if (matcher.groupCount() == 2) {
-                        // Ratio (e.g., 45/100)
+                    }
+                    // Ratio patterns (last 2 patterns)
+                    else {
                         double current = Double.parseDouble(matcher.group(1));
-                        double total = Double.parseDouble(matcher.group(2));
+                        double total = Double.parseDouble(matcher.group(3));
                         return (current / total) * 100.0;
                     }
                 } catch (NumberFormatException e) {
