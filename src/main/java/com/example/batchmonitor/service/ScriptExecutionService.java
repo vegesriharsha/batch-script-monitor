@@ -21,12 +21,15 @@ import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * Service responsible for executing batch scripts and monitoring their execution.
+ * Provides methods to start script execution, monitor progress, and handle completion.
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -50,6 +53,13 @@ public class ScriptExecutionService {
 
     private final ExecutorService executor = Executors.newCachedThreadPool();
 
+    /**
+     * Executes a batch script asynchronously.
+     * Updates the execution status, captures output, and monitors progress.
+     *
+     * @param execution The batch execution entity
+     * @return A CompletableFuture containing the script result
+     */
     @Transactional
     public CompletableFuture<String> executeScript(BatchExecution execution) {
         log.info("Executing script: {} with parameters: {}",
@@ -81,8 +91,8 @@ public class ScriptExecutionService {
                 log.debug("Executing command: {}", String.join(" ", command));
 
                 // Start process
-                ProcessBuilder processBuilder = new ProcessBuilder(command)
-                        .directory(new File(baseScriptsDir));
+                ProcessBuilder processBuilder = createProcessBuilder(command);
+                processBuilder.directory(new File(baseScriptsDir));
 
                 process = processBuilder.start();
 
@@ -108,9 +118,26 @@ public class ScriptExecutionService {
                             + executionTimeoutSeconds + " seconds");
                 }
 
-                // Wait for readers to finish
-                stdoutReader.stop();
-                stderrReader.stop();
+                // Wait for readers to finish to ensure all output is processed
+                if (stdoutReader != null) {
+                    stdoutReader.stop();
+                    try {
+                        stdoutReader.waitFor();
+                    } catch (InterruptedException e) {
+                        log.warn("Interrupted while waiting for stdout reader to finish", e);
+                        Thread.currentThread().interrupt();
+                    }
+                }
+
+                if (stderrReader != null) {
+                    stderrReader.stop();
+                    try {
+                        stderrReader.waitFor();
+                    } catch (InterruptedException e) {
+                        log.warn("Interrupted while waiting for stderr reader to finish", e);
+                        Thread.currentThread().interrupt();
+                    }
+                }
 
                 // Check exit code
                 int exitCode = process.exitValue();
@@ -138,8 +165,10 @@ public class ScriptExecutionService {
                 Thread.currentThread().interrupt();
                 throw new BatchExecutionException("Script execution was interrupted", ex);
             } catch (Exception ex) {
-                updateExecutionFailure(execution, ex.getMessage(), null);
-                throw new BatchExecutionException("Error executing script: " + ex.getMessage(), ex);
+                String errorMsg = "Error executing script: " + ex.getMessage();
+                log.error(errorMsg, ex);
+                updateExecutionFailure(execution, errorMsg, null);
+                throw new BatchExecutionException(errorMsg, ex);
             } finally {
                 // Ensure process and readers are closed
                 if (process != null) {
@@ -155,7 +184,26 @@ public class ScriptExecutionService {
         }, executor);
     }
 
-    private Path createLogFile(BatchExecution execution) throws IOException {
+    /**
+     * Creates a ProcessBuilder for the given command.
+     * Extracted as a method to allow mocking in tests.
+     *
+     * @param command The command to execute
+     * @return A ProcessBuilder configured with the command
+     */
+    ProcessBuilder createProcessBuilder(List<String> command) {
+        return new ProcessBuilder(command);
+    }
+
+    /**
+     * Creates a log file for the batch execution output.
+     * Extracted as a protected method to allow mocking in tests.
+     *
+     * @param execution The batch execution entity
+     * @return The path to the created log file
+     * @throws IOException If an error occurs creating the file
+     */
+    protected Path createLogFile(BatchExecution execution) throws IOException {
         // Create logs directory if it doesn't exist
         Path logsDir = Paths.get(logsDirectory);
         if (!Files.exists(logsDir)) {
@@ -166,9 +214,16 @@ public class ScriptExecutionService {
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
         String fileName = String.format("execution_%d_%s.log", execution.getId(), timestamp);
 
-        return Files.createFile(logsDir.resolve(fileName));
+        Path logFile = logsDir.resolve(fileName);
+        log.debug("Creating log file: {}", logFile);
+        return Files.createFile(logFile);
     }
 
+    /**
+     * Updates the execution status to successful completion.
+     *
+     * @param execution The batch execution entity to update
+     */
     @Transactional
     public void updateExecutionSuccess(BatchExecution execution) {
         execution.setStatus(BatchExecution.ExecutionStatus.COMPLETED);
@@ -190,6 +245,13 @@ public class ScriptExecutionService {
         );
     }
 
+    /**
+     * Updates the execution status to failure.
+     *
+     * @param execution The batch execution entity to update
+     * @param errorMessage The error message to set
+     * @param exitCode The exit code to set (may be null)
+     */
     @Transactional
     public void updateExecutionFailure(BatchExecution execution, String errorMessage, Integer exitCode) {
         execution.setStatus(BatchExecution.ExecutionStatus.FAILED);

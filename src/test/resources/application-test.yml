@@ -1,0 +1,33 @@
+    # application-test.yml
+  spring:
+    datasource:
+      url: jdbc:h2:mem:testdb;MODE=MYSQL;DB_CLOSE_DELAY=-1
+      username: sa
+      password: password
+      driver-class-name: org.h2.Driver
+
+    jpa:
+      database-platform: org.hibernate.dialect.H2Dialect  # Changed from SQLServerDialect to H2Dialect
+      hibernate:
+        ddl-auto: create-drop
+      show-sql: true
+      properties:
+        hibernate:
+          format_sql: true
+
+  batch:
+    scripts:
+      baseDir: ""
+      defaultScript: default_script.sh
+    execution:
+      timeout: 3600
+      maxConcurrent: 5
+      logs:
+        directory: ./logs
+        keepCopy: true
+    websocket:
+      endpoint: /ws
+      topic:
+        progress: /topic/progress
+        console: /topic/console-output
+        status: /topic/status

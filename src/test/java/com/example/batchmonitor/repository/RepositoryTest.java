@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
+import org.springframework.test.context.ActiveProfiles;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -13,6 +14,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 @DataJpaTest
+@ActiveProfiles("test") // Use the test profile with H2 dialect
 class RepositoryTest {
 
     @Autowired
@@ -51,10 +53,10 @@ class RepositoryTest {
                 .build();
 
         // Persist executions
-        entityManager.persist(execution1);
-        entityManager.persist(execution2);
-        entityManager.persist(execution3);
-        entityManager.flush();
+        entityManager.persistAndFlush(execution1);
+        entityManager.persistAndFlush(execution2);
+        entityManager.persistAndFlush(execution3);
+        entityManager.clear(); // Clear persistence context to ensure fresh reads
 
         // Test findAllByOrderByStartTimeDesc
         List<BatchExecution> result = batchExecutionRepository.findAllByOrderByStartTimeDesc();
@@ -85,10 +87,10 @@ class RepositoryTest {
                 .build();
 
         // Persist executions
-        entityManager.persist(execution1);
-        entityManager.persist(execution2);
-        entityManager.persist(execution3);
-        entityManager.flush();
+        entityManager.persistAndFlush(execution1);
+        entityManager.persistAndFlush(execution2);
+        entityManager.persistAndFlush(execution3);
+        entityManager.clear(); // Clear persistence context to ensure fresh reads
 
         // Test findByStatus - RUNNING
         List<BatchExecution> runningExecutions = batchExecutionRepository.findByStatus(BatchExecution.ExecutionStatus.RUNNING);
@@ -112,7 +114,7 @@ class RepositoryTest {
                 .scriptPath("/path/to/script.sh")
                 .status(BatchExecution.ExecutionStatus.RUNNING)
                 .build();
-        entityManager.persist(execution);
+        entityManager.persistAndFlush(execution);
 
         // Create logs for the execution
         LocalDateTime now = LocalDateTime.now();
@@ -139,19 +141,19 @@ class RepositoryTest {
                 .build();
 
         // Persist logs
-        entityManager.persist(log1);
-        entityManager.persist(log2);
-        entityManager.persist(log3);
-        entityManager.flush();
+        entityManager.persistAndFlush(log1);
+        entityManager.persistAndFlush(log2);
+        entityManager.persistAndFlush(log3);
+        entityManager.clear(); // Clear persistence context to ensure fresh reads
 
         // Test findByBatchExecutionIdOrderByTimestampAsc
         List<ExecutionLog> logs = executionLogRepository.findByBatchExecutionIdOrderByTimestampAsc(execution.getId());
         assertEquals(3, logs.size());
 
         // Verify order is by timestamp ascending
-        assertEquals(log1.getId(), logs.get(0).getId()); // oldest
-        assertEquals(log2.getId(), logs.get(1).getId());
-        assertEquals(log3.getId(), logs.get(2).getId()); // newest
+        assertEquals(log1.getMessage(), logs.get(0).getMessage()); // oldest
+        assertEquals(log2.getMessage(), logs.get(1).getMessage());
+        assertEquals(log3.getMessage(), logs.get(2).getMessage()); // newest
     }
 
     @Test
@@ -161,7 +163,7 @@ class RepositoryTest {
                 .scriptPath("/path/to/script.sh")
                 .status(BatchExecution.ExecutionStatus.RUNNING)
                 .build();
-        entityManager.persist(execution);
+        entityManager.persistAndFlush(execution);
 
         // Create logs of different types
         ExecutionLog stdoutLog1 = ExecutionLog.builder()
@@ -193,11 +195,11 @@ class RepositoryTest {
                 .build();
 
         // Persist logs
-        entityManager.persist(stdoutLog1);
-        entityManager.persist(stderrLog);
-        entityManager.persist(stdoutLog2);
-        entityManager.persist(systemLog);
-        entityManager.flush();
+        entityManager.persistAndFlush(stdoutLog1);
+        entityManager.persistAndFlush(stderrLog);
+        entityManager.persistAndFlush(stdoutLog2);
+        entityManager.persistAndFlush(systemLog);
+        entityManager.clear(); // Clear persistence context to ensure fresh reads
 
         // Test findByBatchExecutionIdAndLogTypeOrderByTimestampAsc for STDOUT
         List<ExecutionLog> stdoutLogs = executionLogRepository.findByBatchExecutionIdAndLogTypeOrderByTimestampAsc(
@@ -250,15 +252,13 @@ class RepositoryTest {
         execution.getLogs().add(log2);
 
         // Persist parent (should cascade to logs)
-        entityManager.persist(execution);
-        entityManager.flush();
+        entityManager.persistAndFlush(execution);
+        entityManager.clear(); // Clear persistence context to ensure fresh reads
 
         // Verify that both parent and children were persisted
-        assertNotNull(execution.getId());
-        assertNotNull(log1.getId());
-        assertNotNull(log2.getId());
+        BatchExecution savedExecution = entityManager.find(BatchExecution.class, execution.getId());
+        assertNotNull(savedExecution);
 
-        // Retrieve and verify logs
         List<ExecutionLog> retrievedLogs = executionLogRepository.findByBatchExecutionIdOrderByTimestampAsc(execution.getId());
         assertEquals(2, retrievedLogs.size());
     }

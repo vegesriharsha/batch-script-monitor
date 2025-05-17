@@ -14,6 +14,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.io.File;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
@@ -51,7 +52,7 @@ class BatchExecutionServiceTest {
 
         BatchExecution savedExecution = BatchExecution.builder()
                 .id(1L)
-                .scriptPath("/test/scripts/test-script.sh")
+                .scriptPath(new File("/test/scripts/test-script.sh").getPath())
                 .parameters("--param value")
                 .status(BatchExecution.ExecutionStatus.PENDING)
                 .progress(0.0)
@@ -67,7 +68,7 @@ class BatchExecutionServiceTest {
         // Assert
         assertNotNull(response);
         assertEquals(1L, response.getId());
-        assertEquals("/test/scripts/test-script.sh", response.getScriptPath());
+        assertEquals(new File("/test/scripts/test-script.sh").getPath(), response.getScriptPath());
         assertEquals("--param value", response.getParameters());
         assertEquals(BatchExecution.ExecutionStatus.PENDING, response.getStatus());
 
@@ -76,7 +77,7 @@ class BatchExecutionServiceTest {
         verify(executionRepository).save(executionCaptor.capture());
 
         BatchExecution capturedExecution = executionCaptor.getValue();
-        assertEquals("/test/scripts/test-script.sh", capturedExecution.getScriptPath());
+        assertEquals(new File("/test/scripts/test-script.sh").getPath(), capturedExecution.getScriptPath());
         assertEquals("--param value", capturedExecution.getParameters());
         assertEquals(BatchExecution.ExecutionStatus.PENDING, capturedExecution.getStatus());
         assertEquals(0.0, capturedExecution.getProgress());
@@ -94,7 +95,7 @@ class BatchExecutionServiceTest {
 
         BatchExecution savedExecution = BatchExecution.builder()
                 .id(1L)
-                .scriptPath("/test/scripts/default.sh")  // Default script path
+                .scriptPath(new File("/test/scripts/default.sh").getPath())  // Default script path
                 .parameters("--param value")
                 .status(BatchExecution.ExecutionStatus.PENDING)
                 .progress(0.0)
@@ -108,26 +109,27 @@ class BatchExecutionServiceTest {
         BatchExecutionResponse response = batchExecutionService.startExecution(request);
 
         // Assert
-        assertEquals("/test/scripts/default.sh", response.getScriptPath());
+        assertEquals(new File("/test/scripts/default.sh").getPath(), response.getScriptPath());
 
         // Verify repository interaction
         ArgumentCaptor<BatchExecution> executionCaptor = ArgumentCaptor.forClass(BatchExecution.class);
         verify(executionRepository).save(executionCaptor.capture());
 
         BatchExecution capturedExecution = executionCaptor.getValue();
-        assertEquals("/test/scripts/default.sh", capturedExecution.getScriptPath());
+        assertEquals(new File("/test/scripts/default.sh").getPath(), capturedExecution.getScriptPath());
     }
 
     @Test
     void startExecution_WithAbsolutePath_ShouldUseAbsolutePath() {
         // Arrange
+        String absolutePath = new File("/absolute/path/script.sh").getAbsolutePath();
         BatchExecutionRequest request = new BatchExecutionRequest();
-        request.setScriptName("/absolute/path/script.sh");
+        request.setScriptName(absolutePath);
         request.setParameters("--param value");
 
         BatchExecution savedExecution = BatchExecution.builder()
                 .id(1L)
-                .scriptPath("/absolute/path/script.sh")  // Absolute path is used directly
+                .scriptPath(absolutePath)  // Absolute path is used directly
                 .parameters("--param value")
                 .status(BatchExecution.ExecutionStatus.PENDING)
                 .progress(0.0)
@@ -141,14 +143,14 @@ class BatchExecutionServiceTest {
         BatchExecutionResponse response = batchExecutionService.startExecution(request);
 
         // Assert
-        assertEquals("/absolute/path/script.sh", response.getScriptPath());
+        assertEquals(absolutePath, response.getScriptPath());
 
         // Verify repository interaction
         ArgumentCaptor<BatchExecution> executionCaptor = ArgumentCaptor.forClass(BatchExecution.class);
         verify(executionRepository).save(executionCaptor.capture());
 
         BatchExecution capturedExecution = executionCaptor.getValue();
-        assertEquals("/absolute/path/script.sh", capturedExecution.getScriptPath());
+        assertEquals(absolutePath, capturedExecution.getScriptPath());
     }
 
     @Test

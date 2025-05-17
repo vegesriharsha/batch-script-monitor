@@ -35,6 +35,7 @@ public class BatchExecution {
     private String errorMessage;
 
     @OneToMany(mappedBy = "batchExecution", cascade = CascadeType.ALL)
+    @Builder.Default
     private List<ExecutionLog> logs = new ArrayList<>();
 
     public enum ExecutionStatus {

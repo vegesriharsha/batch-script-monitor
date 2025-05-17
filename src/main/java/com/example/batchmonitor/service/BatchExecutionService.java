@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
@@ -46,20 +47,20 @@ public class BatchExecutionService {
                 .progress(0.0)
                 .build();
 
-        executionRepository.save(execution);
+        BatchExecution savedExecution = executionRepository.save(execution);
 
         // Start execution asynchronously
-        CompletableFuture<String> future = scriptExecutionService.executeScript(execution);
+        CompletableFuture<String> future = scriptExecutionService.executeScript(savedExecution);
 
         // Handle completion (but don't block)
         future.thenAccept(result -> {
-            log.info("Script execution completed for ID: {}", execution.getId());
+            log.info("Script execution completed for ID: {}", savedExecution.getId());
         }).exceptionally(ex -> {
-            log.error("Script execution failed for ID: {}", execution.getId(), ex);
+            log.error("Script execution failed for ID: {}", savedExecution.getId(), ex);
             return null;
         });
 
-        return BatchExecutionResponse.fromEntity(execution);
+        return BatchExecutionResponse.fromEntity(savedExecution);
     }
 
     @Transactional(readOnly = true)
@@ -83,11 +84,13 @@ public class BatchExecutionService {
             scriptName = defaultScript;
         }
 
-        Path path = Paths.get(scriptName);
-        if (!path.isAbsolute()) {
-            path = Paths.get(baseScriptsDir, scriptName);
+        // Check if the script path is already absolute
+        File file = new File(scriptName);
+        if (file.isAbsolute()) {
+            return file.getPath();
         }
 
-        return path.toString();
+        // Otherwise, resolve relative to base scripts directory
+        return new File(baseScriptsDir, scriptName).getPath();
     }
 }
